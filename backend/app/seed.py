@@ -108,6 +108,7 @@ FORMS = [
             {"type": "number", "title": "Years of professional experience?", "properties": {"min": 0, "max": 50}},
             {"type": "yes_no", "title": "Are you open to working remotely?"},
             {"type": "long_text", "title": "Why do you want to join us?", "required": True},
+            {"type": "file_upload", "title": "Upload your résumé", "description": "PDF or DOC, up to 10 MB."},
         ],
     },
 ]

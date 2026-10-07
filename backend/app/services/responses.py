@@ -32,6 +32,7 @@ def to_answer_out(answer: Answer) -> AnswerOut:
         number=answer.value_number,
         boolean=answer.value_boolean,
         choice_ids=[c.id for c in answer.choices],
+        file_id=answer.file_id,
         display=answer_display(answer),
     )
 

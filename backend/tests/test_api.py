@@ -102,6 +102,30 @@ def test_logic_jump_skips_required_questions(client):
     assert dup["questions"][0]["properties"]["jumps"] == {"yes": dup_ids[2]}
 
 
+def test_file_upload_question(client):
+    form = client.post("/api/forms", json={"title": "Uploads"}).json()
+    qid = str(uuid.uuid4())
+    questions = [{"id": qid, "type": "file_upload", "title": "Your CV", "required": True}]
+    client.put(f"/api/forms/{form['id']}", json=_definition(form, questions))
+    client.post(f"/api/forms/{form['id']}/publish")
+    base = f"/api/public/forms/{form['slug']}"
+
+    upload = client.post(f"{base}/questions/{qid}/files", files={"file": ("cv.pdf", b"%PDF-1.4 hello", "application/pdf")})
+    assert upload.status_code == 201
+    file_id = upload.json()["id"]
+
+    assert client.post(f"{base}/responses", json={"answers": {qid: "not-a-file"}}).status_code == 422
+    assert client.post(f"{base}/responses", json={"answers": {qid: file_id}}).status_code == 201
+    # The same upload can't be attached to a second response
+    assert client.post(f"{base}/responses", json={"answers": {qid: file_id}}).status_code == 422
+
+    answer = client.get(f"/api/forms/{form['id']}/responses").json()["items"][0]["answers"][0]
+    assert answer["file_id"] == file_id and answer["display"] == "cv.pdf"
+    download = client.get(f"/api/forms/{form['id']}/files/{file_id}")
+    assert download.content == b"%PDF-1.4 hello"
+    assert "attachment" in download.headers["content-disposition"]
+
+
 def test_single_choice_rejects_multiple(client):
     form = next(f for f in client.get("/api/forms").json() if f["title"] == "Customer Feedback Survey")
     full = client.get(f"/api/public/forms/{form['slug']}").json()

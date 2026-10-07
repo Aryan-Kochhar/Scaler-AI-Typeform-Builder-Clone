@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, ChevronDown, Clock, Monitor, Plus, Smartphone, Star, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Clock, Monitor, Plus, Smartphone, Star, Upload, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChoiceBox } from "@/components/renderer/inputs";
 import { themeStyle } from "@/lib/themes";
@@ -155,6 +155,22 @@ function AnswerPreview({ question }: { question: Question }) {
         </div>
       );
     }
+    case "file_upload":
+      return (
+        <div
+          className="pointer-events-none flex h-44 w-full max-w-[520px] flex-col items-center justify-center gap-2 rounded tf-answer-text"
+          style={{
+            background: "color-mix(in srgb, var(--tf-answer) 8%, transparent)",
+            border: "1px dashed color-mix(in srgb, var(--tf-answer) 60%, transparent)",
+          }}
+        >
+          <Upload size={28} />
+          <span className="text-lg">
+            <b>Choose file</b> or drag here
+          </span>
+          <span className="text-sm opacity-70">Size limit: 10MB</span>
+        </div>
+      );
     default:
       return (
         <div className="pointer-events-none">

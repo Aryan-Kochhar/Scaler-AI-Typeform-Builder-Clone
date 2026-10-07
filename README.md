@@ -14,7 +14,7 @@ A full-stack clone of [Typeform](https://www.typeform.com): build forms in a thr
 
 ### Form builder (`/form/:id/create`)
 - Three-pane layout like Typeform: question list · live canvas · settings panel
-- **8 question types:** short text, long text, multiple choice (single or multi-select), dropdown, email, number (min/max), yes/no, rating (3–10 steps, stars or numbers)
+- **9 question types:** short text, long text, multiple choice (single or multi-select), dropdown, email, number (min/max), yes/no, rating (3–10 steps, stars or numbers), **file upload** (drag & drop, 10 MB)
 - Add (searchable "Add content" modal), edit inline, duplicate, delete, **drag-and-drop reorder** (mouse and keyboard via `@dnd-kit`)
 - **Inline editing on the canvas:** question title, description, choice labels (Enter adds a choice, Backspace on empty removes it), welcome & thank-you screens
 - Per-question settings: required toggle, type switch (keeps compatible data), type-specific options
@@ -43,7 +43,7 @@ A full-stack clone of [Typeform](https://www.typeform.com): build forms in a thr
 - **Export CSV**
 
 ### Bonus items implemented
-Logic jumps / basic branching · custom themes (colors + fonts) · CSV export · partial-response tracking (views → starts → submissions funnel and completion rate)
+Logic jumps / basic branching · file-upload question type · custom themes (colors + fonts) · CSV export · partial-response tracking (views → starts → submissions funnel and completion rate)
 
 ---
 
@@ -90,16 +90,19 @@ erDiagram
     responses ||--o{ answers : has
     questions ||--o{ answers : "answered by"
     answers }o--o{ question_choices : "answer_choices"
+    questions ||--o{ uploaded_files : "file uploads"
+    uploaded_files |o--o| answers : "attached to"
 ```
 
 | Table | Columns | Notes |
 |---|---|---|
 | `users` | `id` PK, `name`, `email` UNIQUE, `created_at` | Default creator is seeded |
 | `forms` | `id` UUID PK, `owner_id` FK→users, `title`, `slug` UNIQUE, `status` CHECK(draft/published), `theme` JSON, `settings` JSON, `view_count`, `start_count`, `published_at`, `created_at`, `updated_at` | `slug` is the public link id (`/to/<slug>`); `theme`/`settings` (welcome & thank-you screens) are always read whole, so JSON is appropriate |
-| `questions` | `id` UUID PK, `form_id` FK→forms CASCADE, `position`, `type` CHECK(8 types), `title`, `description`, `required`, `properties` JSON | `properties` holds type-specific options (`allow_multiple`, `steps`, `shape`, `min`, `max`, `max_length`); index on `(form_id, position)` |
+| `questions` | `id` UUID PK, `form_id` FK→forms CASCADE, `position`, `type` CHECK(9 types), `title`, `description`, `required`, `properties` JSON | `properties` holds type-specific options (`allow_multiple`, `steps`, `shape`, `min`, `max`, `max_length`); index on `(form_id, position)` |
 | `question_choices` | `id` UUID PK, `question_id` FK→questions CASCADE, `position`, `label` | Normalized so choice answers reference real rows and summary counts are a simple join |
 | `responses` | `id` UUID PK, `form_id` FK→forms CASCADE, `started_at`, `submitted_at`, `user_agent` | `started_at` → average completion time; index on `(form_id, submitted_at)` |
-| `answers` | `id` PK, `response_id` FK→responses CASCADE, `question_id` FK→questions CASCADE, `value_text`, `value_number`, `value_boolean` | UNIQUE `(response_id, question_id)`; one typed column per answer kind |
+| `answers` | `id` PK, `response_id` FK→responses CASCADE, `question_id` FK→questions CASCADE, `value_text`, `value_number`, `value_boolean`, `file_id` FK→uploaded_files SET NULL | UNIQUE `(response_id, question_id)`; one typed column per answer kind |
+| `uploaded_files` | `id` UUID PK, `form_id` FK→forms CASCADE, `question_id` FK→questions CASCADE, `filename`, `content_type`, `size`, `data` BLOB (deferred), `created_at` | Uploaded before submit, linked from `answers.file_id`; a file can be attached to only one answer |
 | `answer_choices` | `answer_id` FK→answers, `choice_id` FK→question_choices (composite PK) | Many-to-many for single/multi-select answers; `answers.value_text` keeps a label snapshot so old answers stay readable if a choice is renamed or removed |
 
 SQLite foreign keys are enabled per connection (`PRAGMA foreign_keys=ON`) so cascades are enforced by the database. Timestamps are stored in UTC.
@@ -126,6 +129,7 @@ All endpoints are JSON. Interactive docs: `http://localhost:8000/docs`.
 | GET | `/api/forms/{id}/responses?limit&offset` | Paginated responses with answers |
 | GET / DELETE | `/api/forms/{id}/responses/{responseId}` | One response / delete it |
 | GET | `/api/forms/{id}/summary` | Funnel stats + per-question summaries |
+| GET | `/api/forms/{id}/files/{fileId}` | Download an uploaded file (always as an attachment) |
 | GET | `/api/forms/{id}/responses.csv` | CSV export |
 
 **Public (no auth)**
@@ -134,9 +138,10 @@ All endpoints are JSON. Interactive docs: `http://localhost:8000/docs`.
 |---|---|---|
 | GET | `/api/public/forms/{slug}` | Published form definition (404 if draft/unknown) |
 | POST | `/api/public/forms/{slug}/events` | `{type: "view" \| "start"}` funnel tracking |
+| POST | `/api/public/forms/{slug}/questions/{questionId}/files` | Multipart upload for a file-upload question (≤ 10 MB); returns the file id |
 | POST | `/api/public/forms/{slug}/responses` | Submit `{answers: {questionId: value}, started_at}`; validated server-side |
 
-Answer value formats: text/email → string, number/rating → number, yes/no → boolean, multiple choice → array of choice ids, dropdown → choice id.
+Answer value formats: text/email → string, number/rating → number, yes/no → boolean, multiple choice → array of choice ids, dropdown → choice id, file upload → uploaded file id.
 
 ---
 
@@ -193,7 +198,9 @@ Set **Root Directory** to `frontend` and `NEXT_PUBLIC_API_URL` to the Render URL
 - **Views/starts** are lightweight counters (one `view` per page load, one `start` on the first interaction) used for completion rate; they are not de-duplicated per visitor.
 - Deleting a question also deletes its answers (cascade). Renaming/removing a choice keeps old answers readable via the stored label snapshot.
 - Logic jumps cover single-select choice, dropdown and yes/no questions with forward jumps only; conditions on text/number answers, scoring and variables are placeholders.
-- Placeholders ("Coming soon"): scoring/variables, integrations (Connect tab), embed/email/QR sharing, team workspaces & sharing, extra question types (file upload, payment, date, phone, etc.), form settings (notifications, scheduling, language), background images, billing.
+- Uploaded files are stored as BLOBs in SQLite (10 MB limit) to keep a single database; files uploaded but never submitted are kept, not cleaned up. Downloads are always served as attachments with `nosniff`.
+- A GitHub Actions workflow pings the API every 10 minutes so the free Render instance stays warm for reviewers; CI runs the backend tests and a frontend type-check + build on every push.
+- Placeholders ("Coming soon"): scoring/variables, integrations (Connect tab), embed/email/QR sharing, team workspaces & sharing, extra question types (payment, date, phone, etc.), form settings (notifications, scheduling, language), background images, billing.
 - The "typeform" wordmark is a plain-text label for this educational clone; no Typeform assets or code are used.
 
 ## Project structure

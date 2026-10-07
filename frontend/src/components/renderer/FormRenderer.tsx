@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { themeStyle } from "@/lib/themes";
-import type { Answers, AnswerValue, PublicForm, Question } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import type { Answers, AnswerValue, PublicForm, Question, UploadedFile } from "@/lib/types";
+import { cn, uid } from "@/lib/utils";
 import { nextIndex, visitedPath } from "@/lib/logic";
 import { isEmpty, validateAnswer } from "@/lib/validation";
 import { AnswerInput } from "./inputs";
@@ -28,6 +28,8 @@ interface FormRendererProps {
   /** Persist the submission. Throw ApiError with `detail.errors` for per-question errors. */
   onSubmit?: (answers: Answers, startedAt: string | null) => Promise<void>;
   onStart?: () => void;
+  /** Store a file for a file_upload question (live mode). Preview mode fakes it. */
+  uploadFile?: (questionId: string, file: File) => Promise<UploadedFile>;
   /** Fill the parent box instead of the viewport (builder preview). */
   embedded?: boolean;
 }
@@ -43,7 +45,14 @@ function serialize(questions: Question[], answers: Answers): Answers {
   return out;
 }
 
-export function FormRenderer({ form, mode, onSubmit, onStart, embedded }: FormRendererProps) {
+const fakeUpload = async (_questionId: string, file: File): Promise<UploadedFile> => ({
+  id: `preview-${uid()}`,
+  filename: file.name,
+  content_type: file.type,
+  size: file.size,
+});
+
+export function FormRenderer({ form, mode, onSubmit, onStart, uploadFile, embedded }: FormRendererProps) {
   const { questions } = form;
   const welcome = form.settings?.welcome_screen;
   const thankYou = form.settings?.thank_you_screen;
@@ -267,6 +276,7 @@ export function FormRenderer({ form, mode, onSubmit, onStart, embedded }: FormRe
             value={value}
             onChange={(v, advance) => setAnswer(question, v, advance)}
             onEnter={() => next()}
+            uploadFile={mode === "live" ? uploadFile : fakeUpload}
             autoFocus
           />
         </div>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useIsPresent } from "framer-motion";
-import { Check, ChevronDown, Star } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, FileText, Loader2, Star, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AnswerValue, Question } from "@/lib/types";
+import type { AnswerValue, Question, UploadedFile } from "@/lib/types";
 import { cn, letterFor } from "@/lib/utils";
 
 export interface AnswerInputProps {
@@ -13,6 +13,8 @@ export interface AnswerInputProps {
   onChange: (value: AnswerValue, advance?: boolean) => void;
   onEnter?: () => void;
   autoFocus?: boolean;
+  /** Uploads a file for a file_upload question and returns the stored file. */
+  uploadFile?: (questionId: string, file: File) => Promise<UploadedFile>;
 }
 
 /** Listen for single-key shortcuts (A/B/C, Y/N, 1-9) while this question is on screen. */
@@ -334,8 +336,95 @@ export function DropdownAnswer({ question, value, onChange, onEnter, autoFocus }
   );
 }
 
+// File id -> name, so the chosen file still shows after navigating away and back.
+const uploadedNames = new Map<string, string>();
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+export function FileAnswer({ question, value, onChange, uploadFile }: AnswerInputProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const fileId = typeof value === "string" && value ? value : null;
+  const tint = (pct: number) => `color-mix(in srgb, var(--tf-answer) ${pct}%, transparent)`;
+
+  const handle = async (file: File | undefined) => {
+    if (!file || !uploadFile) return;
+    if (file.size > MAX_FILE_BYTES) {
+      setError("File is too large (max 10 MB)");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const uploaded = await uploadFile(question.id, file);
+      uploadedNames.set(uploaded.id, uploaded.filename);
+      onChange(uploaded.id);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (fileId) {
+    return (
+      <div
+        className="flex w-full max-w-[520px] items-center gap-3 rounded px-4 py-3 tf-answer-text"
+        style={{ background: tint(10), boxShadow: `inset 0 0 0 1px ${tint(60)}` }}
+      >
+        <FileText size={22} className="shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-lg">{uploadedNames.get(fileId) ?? "Uploaded file"}</span>
+        <button type="button" aria-label="Remove file" className="rounded p-1 hover:opacity-70" onClick={() => onChange(null)}>
+          <X size={18} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-[520px]">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          void handle(e.dataTransfer.files[0]);
+        }}
+        className="flex h-44 w-full flex-col items-center justify-center gap-2 rounded tf-answer-text transition-colors"
+        style={{ background: tint(dragging ? 25 : 8), border: `1px dashed ${tint(60)}` }}
+      >
+        {busy ? <Loader2 size={28} className="animate-spin" /> : <Upload size={28} />}
+        <span className="text-lg">
+          {busy ? "Uploading..." : (
+            <>
+              <b>Choose file</b> or drag here
+            </>
+          )}
+        </span>
+        <span className="text-sm opacity-70">Size limit: 10MB</span>
+      </button>
+      <input ref={inputRef} type="file" hidden onChange={(e) => void handle(e.target.files?.[0])} />
+      {error && (
+        <p className="tf-error mt-3">
+          <AlertTriangle size={14} /> {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AnswerInput(props: AnswerInputProps) {
   switch (props.question.type) {
+    case "file_upload":
+      return <FileAnswer {...props} />;
     case "multiple_choice":
       return <ChoiceAnswer {...props} />;
     case "dropdown":

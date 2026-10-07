@@ -5,6 +5,7 @@ import type {
   FormSummary,
   PublicForm,
   ResponseList,
+  UploadedFile,
   User,
 } from "./types";
 
@@ -91,6 +92,25 @@ export const api = {
     request<void>(`/api/forms/${formId}/responses/${responseId}`, { method: "DELETE" }),
   getSummary: (formId: string) => request<FormSummary>(`/api/forms/${formId}/summary`),
   csvUrl: (formId: string) => `${API_URL}/api/forms/${formId}/responses.csv`,
+
+  fileUrl: (formId: string, fileId: string) => `${API_URL}/api/forms/${formId}/files/${fileId}`,
+
+  uploadFile: async (slug: string, questionId: string, file: File): Promise<UploadedFile> => {
+    const body = new FormData();
+    body.append("file", file);
+    // Not via request(): the browser must set the multipart Content-Type boundary itself.
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/api/public/forms/${slug}/questions/${questionId}/files`, { method: "POST", body });
+    } catch {
+      throw new ApiError("Upload failed. Please check your connection.", 0);
+    }
+    if (!res.ok) {
+      const detail = await res.json().then((j) => j.detail).catch(() => null);
+      throw new ApiError(typeof detail === "string" ? detail : "Upload failed", res.status, detail);
+    }
+    return res.json();
+  },
 
   getPublicForm: (slug: string) => request<PublicForm>(`/api/public/forms/${slug}`),
   trackEvent: (slug: string, type: "view" | "start") =>

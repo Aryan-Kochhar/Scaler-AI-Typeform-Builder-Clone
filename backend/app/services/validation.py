@@ -7,9 +7,10 @@ respondent UI so a crafted request can't bypass it.
 
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from ..models import Choice, Question
+from ..models import Choice, Question, UploadedFile
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
 DEFAULT_MAX_LENGTH = {"short_text": 500, "long_text": 10_000, "email": 255}
@@ -25,6 +26,7 @@ class NormalizedAnswer:
     value_number: float | None = None
     value_boolean: bool | None = None
     choices: list[Choice] = field(default_factory=list)
+    file: UploadedFile | None = None
 
 
 def _is_empty(raw) -> bool:
@@ -48,8 +50,13 @@ def _to_number(raw) -> float:
     return value
 
 
-def normalize_answer(question: Question, raw) -> NormalizedAnswer | None:
-    """Validate `raw` against `question`. Returns None for a valid empty answer."""
+def normalize_answer(
+    question: Question, raw, find_file: Callable[[str], UploadedFile | None] | None = None
+) -> NormalizedAnswer | None:
+    """Validate `raw` against `question`. Returns None for a valid empty answer.
+
+    `find_file` resolves an uploaded file id (only needed for file_upload questions).
+    """
     if _is_empty(raw):
         if question.required:
             raise AnswerError("Please fill this in")
@@ -103,5 +110,11 @@ def normalize_answer(question: Question, raw) -> NormalizedAnswer | None:
                 raise AnswerError("That option doesn't exist")
             selected.append(by_id[choice_id])
         return NormalizedAnswer(value_text=", ".join(c.label for c in selected), choices=selected)
+
+    if qtype == "file_upload":
+        upload = find_file(raw) if isinstance(raw, str) and find_file else None
+        if upload is None or upload.question_id != question.id:
+            raise AnswerError("Please upload your file again")
+        return NormalizedAnswer(value_text=upload.filename, file=upload)
 
     raise AnswerError("Unsupported question type")

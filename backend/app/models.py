@@ -4,7 +4,8 @@ Entity overview:
 
     users 1──* forms 1──* questions 1──* question_choices
                  │                │
-                 │                └──* answers *──* question_choices  (via answer_choices)
+                 │                ├──* answers *──* question_choices  (via answer_choices)
+                 │                └──* uploaded_files 1──0..1 answers (file_upload questions)
                  └──* responses 1──* answers
 """
 
@@ -21,6 +22,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Table,
     Text,
@@ -40,6 +42,7 @@ QUESTION_TYPES = (
     "number",
     "yes_no",
     "rating",
+    "file_upload",
 )
 CHOICE_TYPES = ("multiple_choice", "dropdown")
 FORM_STATUSES = ("draft", "published")
@@ -191,7 +194,29 @@ class Answer(Base):
     value_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     value_number: Mapped[float | None] = mapped_column(Float, nullable=True)
     value_boolean: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    file_id: Mapped[str | None] = mapped_column(ForeignKey("uploaded_files.id", ondelete="SET NULL"), nullable=True)
 
     response: Mapped[Response] = relationship(back_populates="answers")
     question: Mapped[Question] = relationship()
     choices: Mapped[list[Choice]] = relationship(secondary=answer_choices)
+    file: Mapped["UploadedFile | None"] = relationship()
+
+
+class UploadedFile(Base):
+    """A file uploaded by a respondent for a file_upload question.
+
+    Uploaded before the response is submitted (so large files don't block the flow), then
+    linked from `answers.file_id` on submit. Bytes live in SQLite to keep the stack to a
+    single database; `data` is deferred so listing answers never loads blobs.
+    """
+
+    __tablename__ = "uploaded_files"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    form_id: Mapped[str] = mapped_column(ForeignKey("forms.id", ondelete="CASCADE"), index=True)
+    question_id: Mapped[str] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"), index=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(127))
+    size: Mapped[int] = mapped_column(Integer)
+    data: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)

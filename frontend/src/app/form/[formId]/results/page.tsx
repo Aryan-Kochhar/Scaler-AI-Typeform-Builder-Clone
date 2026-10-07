@@ -106,11 +106,13 @@ function QuestionSummaryCard({ summary, index, question }: { summary: QuestionSu
 }
 
 function ResponseDrawer({
+  formId,
   response,
   questions,
   onClose,
   onDelete,
 }: {
+  formId: string;
   response: ResponseOut | null;
   questions: Question[];
   onClose: () => void;
@@ -152,9 +154,18 @@ function ResponseDrawer({
                       <TypeChip type={q.type} number={i + 1} size={20} />
                       <p className="text-sm text-ink-soft">{q.title}</p>
                     </div>
-                    <p className={cn("mt-2 whitespace-pre-wrap text-[15px]", answer ? "text-ink" : "text-ink-faint")}>
-                      {answer?.display || "No answer"}
-                    </p>
+                    {answer?.file_id ? (
+                      <a
+                        href={api.fileUrl(formId, answer.file_id)}
+                        className="mt-2 inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[15px] text-ink hover:bg-black/[0.03]"
+                      >
+                        <Download size={15} /> {answer.display}
+                      </a>
+                    ) : (
+                      <p className={cn("mt-2 whitespace-pre-wrap text-[15px]", answer ? "text-ink" : "text-ink-faint")}>
+                        {answer?.display || "No answer"}
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -331,7 +342,7 @@ export default function ResultsPage() {
         )}
       </div>
 
-      <ResponseDrawer response={open} questions={form.questions} onClose={() => setOpen(null)} onDelete={setDeleting} />
+      <ResponseDrawer formId={form.id} response={open} questions={form.questions} onClose={() => setOpen(null)} onDelete={setDeleting} />
       <ConfirmModal
         open={!!deleting}
         onClose={() => setDeleting(null)}

@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response as HTTPResponse
 from sqlalchemy import func, select
@@ -5,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import Response, User
+from ..models import Response, UploadedFile, User
 from ..schemas import FormSummary, ResponseList, ResponseOut
 from ..services import responses as response_service
 from ..services.forms import get_owned_form
@@ -47,6 +49,24 @@ def delete_response(
     db.delete(response)
     db.commit()
     return HTTPResponse(status_code=204)
+
+
+@router.get("/files/{file_id}")
+def download_file(form_id: str, file_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Download a respondent's uploaded file (always as an attachment, never rendered inline)."""
+    get_owned_form(db, form_id, user)
+    upload = db.scalar(select(UploadedFile).where(UploadedFile.id == file_id, UploadedFile.form_id == form_id))
+    if not upload:
+        raise HTTPException(status_code=404, detail="File not found")
+    ascii_name = upload.filename.encode("ascii", "ignore").decode().replace('"', "") or "file"
+    return HTTPResponse(
+        content=upload.data,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(upload.filename)}",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/summary", response_model=FormSummary)

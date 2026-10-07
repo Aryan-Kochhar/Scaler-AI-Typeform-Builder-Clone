@@ -51,6 +51,7 @@ export default function PublicFormPage() {
       form={form}
       mode="live"
       onStart={onStart}
+      uploadFile={(questionId, file) => api.uploadFile(slug, questionId, file)}
       onSubmit={async (answers, startedAt) => {
         await api.submitResponse(slug, answers, startedAt);
       }}

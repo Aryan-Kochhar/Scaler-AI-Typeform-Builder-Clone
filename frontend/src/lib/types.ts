@@ -6,7 +6,8 @@ export type QuestionType =
   | "email"
   | "number"
   | "yes_no"
-  | "rating";
+  | "rating"
+  | "file_upload";
 
 export interface Choice {
   id: string;
@@ -101,7 +102,15 @@ export interface AnswerOut {
   number: number | null;
   boolean: boolean | null;
   choice_ids: string[];
+  file_id: string | null;
   display: string;
+}
+
+export interface UploadedFile {
+  id: string;
+  filename: string;
+  content_type: string;
+  size: number;
 }
 
 export interface ResponseOut {

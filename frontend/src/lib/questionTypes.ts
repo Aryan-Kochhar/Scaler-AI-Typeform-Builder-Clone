@@ -8,6 +8,7 @@ import {
   Star,
   Type,
   ListChecks,
+  Upload,
 } from "lucide-react";
 import type { Question, QuestionType } from "./types";
 import { uid } from "./utils";
@@ -29,6 +30,7 @@ export const QUESTION_TYPES: Record<QuestionType, QuestionTypeMeta> = {
   dropdown: { label: "Dropdown", icon: ChevronDownCircle, color: "#DCCFFF", description: "Long lists of options" },
   yes_no: { label: "Yes/No", icon: CircleCheck, color: "#DCCFFF", description: "A simple yes or no" },
   rating: { label: "Rating", icon: Star, color: "#C3EBD4", description: "Stars or a number scale" },
+  file_upload: { label: "File Upload", icon: Upload, color: "#FFDFB0", description: "Files up to 10 MB" },
 };
 
 export const QUESTION_GROUPS: { title: string; types: QuestionType[]; comingSoon?: string[] }[] = [
@@ -36,7 +38,7 @@ export const QUESTION_GROUPS: { title: string; types: QuestionType[]; comingSoon
   { title: "Choice", types: ["multiple_choice", "dropdown", "yes_no"], comingSoon: ["Picture Choice", "Checkbox", "Legal"] },
   { title: "Rating & ranking", types: ["rating"], comingSoon: ["Opinion Scale", "Ranking", "Matrix", "Net Promoter Score®"] },
   { title: "Text & Video", types: ["short_text", "long_text"], comingSoon: ["Video and Audio", "Clarify with AI"] },
-  { title: "Other", types: ["number"], comingSoon: ["Date", "File Upload", "Payment", "Calendly"] },
+  { title: "Other", types: ["number", "file_upload"], comingSoon: ["Date", "Payment", "Calendly"] },
 ];
 
 export const isChoiceType = (type: QuestionType) => type === "multiple_choice" || type === "dropdown";

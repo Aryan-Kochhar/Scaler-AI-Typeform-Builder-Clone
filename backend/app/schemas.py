@@ -12,6 +12,7 @@ QuestionType = Literal[
     "number",
     "yes_no",
     "rating",
+    "file_upload",
 ]
 AnswerValue = str | int | float | bool | list[str] | None
 
@@ -133,6 +134,13 @@ class SubmissionOut(BaseModel):
     submitted_at: datetime
 
 
+class UploadedFileOut(ORMModel):
+    id: str
+    filename: str
+    content_type: str
+    size: int
+
+
 class FormEventIn(BaseModel):
     type: Literal["view", "start"]
 
@@ -143,6 +151,7 @@ class AnswerOut(BaseModel):
     number: float | None = None
     boolean: bool | None = None
     choice_ids: list[str] = Field(default_factory=list)
+    file_id: str | None = None
     display: str
 
 
