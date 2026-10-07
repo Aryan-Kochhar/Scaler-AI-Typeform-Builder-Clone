@@ -9,6 +9,7 @@ from ..database import get_db
 from ..models import Answer, Form, Response, utcnow
 from ..schemas import FormEventIn, PublicFormOut, SubmissionIn, SubmissionOut
 from ..services.forms import form_query
+from ..services.logic import visited_question_ids
 from ..services.validation import AnswerError, normalize_answer
 
 router = APIRouter(prefix="/api/public/forms", tags=["public"])
@@ -57,7 +58,11 @@ def submit_response(slug: str, payload: SubmissionIn, request: Request, db: Sess
         submitted_at=utcnow(),
         user_agent=(request.headers.get("user-agent") or "")[:500],
     )
+    # Questions skipped by logic jumps are neither validated nor stored.
+    visited = visited_question_ids(form.questions, payload.answers)
     for question in form.questions:
+        if question.id not in visited:
+            continue
         try:
             normalized = normalize_answer(question, payload.answers.get(question.id))
         except AnswerError as exc:

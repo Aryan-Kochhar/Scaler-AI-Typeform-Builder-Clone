@@ -20,6 +20,8 @@ export interface QuestionProperties {
   min?: number | null;
   max?: number | null;
   max_length?: number | null;
+  /** Logic jumps: answer key (choice id, "yes" or "no") -> target question id or "end". */
+  jumps?: Record<string, string>;
 }
 
 export interface Question {

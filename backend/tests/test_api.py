@@ -78,6 +78,25 @@ def test_builder_round_trip_and_respondent_flow(client):
     assert client.get(f"/api/forms/{form['id']}").status_code == 404
 
 
+def test_logic_jump_skips_required_questions(client):
+    form = client.post("/api/forms", json={"title": "Branching"}).json()
+    q1, q2, q3 = (str(uuid.uuid4()) for _ in range(3))
+    questions = [
+        {"id": q1, "type": "yes_no", "title": "Skip ahead?", "required": True, "properties": {"jumps": {"yes": q3}}},
+        {"id": q2, "type": "short_text", "title": "Only if no", "required": True},
+        {"id": q3, "type": "short_text", "title": "Last", "required": True},
+    ]
+    client.put(f"/api/forms/{form['id']}", json=_definition(form, questions))
+    client.post(f"/api/forms/{form['id']}/publish")
+    url = f"/api/public/forms/{form['slug']}/responses"
+
+    # "Yes" jumps over the required q2
+    assert client.post(url, json={"answers": {q1: True, q3: "done"}}).status_code == 201
+    # "No" follows the default path, so q2 is required
+    res = client.post(url, json={"answers": {q1: False, q3: "done"}})
+    assert res.status_code == 422 and q2 in res.json()["detail"]["errors"]
+
+
 def test_single_choice_rejects_multiple(client):
     form = next(f for f in client.get("/api/forms").json() if f["title"] == "Customer Feedback Survey")
     full = client.get(f"/api/public/forms/{form['slug']}").json()

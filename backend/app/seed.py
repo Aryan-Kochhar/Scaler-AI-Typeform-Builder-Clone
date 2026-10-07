@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from .database import Base, SessionLocal, engine
 from .models import Answer, Choice, Form, Question, Response, User, utcnow
 from .services.forms import DEFAULT_SETTINGS, DEFAULT_THEME, generate_slug
+from .services.logic import visited_question_ids
 
 THEMES = {
     "classic": DEFAULT_THEME,
@@ -58,7 +59,8 @@ FORMS = [
             {"type": "email", "title": "What's your email address?", "description": "We'll only use it to follow up on your feedback.", "required": True},
             {"type": "multiple_choice", "title": "How did you hear about us?", "choices": ["Search engine", "Friend or colleague", "Social media", "Podcast", "Other"]},
             {"type": "rating", "title": "How would you rate your overall experience?", "required": True, "properties": {"steps": 5, "shape": "star"}},
-            {"type": "yes_no", "title": "Would you recommend us to a friend?"},
+            # Logic jump demo: "No" skips straight to the open feedback question.
+            {"type": "yes_no", "title": "Would you recommend us to a friend?", "jumps": {"no": 7}},
             {"type": "dropdown", "title": "Which plan are you on?", "choices": ["Free", "Basic", "Plus", "Business", "Enterprise"]},
             {"type": "number", "title": "How many people on your team use the product?", "properties": {"min": 1, "max": 10000}},
             {"type": "long_text", "title": "Anything we could do better?", "description": "Be as honest as you like."},
@@ -187,6 +189,15 @@ def seed(db: Session) -> None:
         db.add(form)
         db.flush()
 
+        # Logic jumps are declared by question position in the spec; resolve them to ids.
+        for position, q in enumerate(spec["questions"]):
+            if "jumps" in q:
+                question = form.questions[position]
+                question.properties = {
+                    **question.properties,
+                    "jumps": {key: form.questions[target].id for key, target in q["jumps"].items()},
+                }
+
         for i in range(spec["responses"]):
             submitted = now - timedelta(days=rng.randint(0, 25), hours=rng.randint(0, 23), minutes=rng.randint(0, 59))
             response = Response(
@@ -196,10 +207,11 @@ def seed(db: Session) -> None:
                 user_agent="seed",
             )
             name = NAMES[i % len(NAMES)]
-            for question in form.questions:
-                answer = _fake_answer(rng, question, name)
-                if answer:
-                    response.answers.append(answer)
+            answers = [a for a in (_fake_answer(rng, q, name) for q in form.questions) if a]
+            # Keep seeded data consistent with logic jumps: drop answers to skipped questions.
+            raw = {a.question_id: a.value_boolean if a.value_boolean is not None else [c.id for c in a.choices] for a in answers}
+            visited = visited_question_ids(form.questions, raw)
+            response.answers = [a for a in answers if a.question_id in visited]
             db.add(response)
         form.start_count = spec["responses"] + rng.randint(2, 6) if spec["responses"] else 0
         form.view_count = form.start_count + rng.randint(5, 15) if spec["responses"] else 0

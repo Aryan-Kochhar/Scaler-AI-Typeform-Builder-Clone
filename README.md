@@ -20,7 +20,8 @@ A full-stack clone of [Typeform](https://www.typeform.com): build forms in a thr
 - **Live preview:** the canvas is rendered with the form's theme; the Preview button runs the real respondent flow full-screen (desktop/mobile)
 - **Design panel:** 8 theme presets, custom colors (questions, answers, buttons, background) and fonts
 - **Autosave** (debounced, serialized PUTs) with a Saved/Saving indicator; warns before closing with unsaved changes
-- Publish / unpublish with a "your form is live" share modal; Workflow (logic), Connect (integrations) and form settings are "Coming soon" placeholders
+- **Logic jumps (Workflow tab):** for single-select multiple choice, dropdown and yes/no questions, route each answer to a later question or straight to the end; skipped questions aren't required or stored (enforced on the server too)
+- Publish / unpublish with a "your form is live" share modal; Connect (integrations) and form settings are "Coming soon" placeholders
 
 ### Form management (`/workspace`)
 - All forms with status (Draft/Published), question count, response count, last updated
@@ -41,7 +42,7 @@ A full-stack clone of [Typeform](https://www.typeform.com): build forms in a thr
 - **Export CSV**
 
 ### Bonus items implemented
-Custom themes (colors + fonts) · CSV export · partial-response tracking (views → starts → submissions funnel and completion rate)
+Logic jumps / basic branching · custom themes (colors + fonts) · CSV export · partial-response tracking (views → starts → submissions funnel and completion rate)
 
 ---
 
@@ -70,6 +71,7 @@ Custom themes (colors + fonts) · CSV export · partial-response tracking (views
 - **Document-style builder saves.** The builder edits the whole form in client state (`FormEditorProvider`) and autosaves with `PUT /api/forms/:id` containing the full definition — the same model Typeform's own Create API uses. The server *syncs* that document: questions/choices are matched by id, updated in place (so existing answers survive edits/reorders), inserted if new, deleted if missing.
 - **Client-generated UUIDs.** New questions/choices get a UUID in the browser and the server accepts it (after validating it isn't used elsewhere). This means no temporary-id reconciliation after each autosave, so the user can keep typing while saves are in flight.
 - **One renderer, two uses.** `components/renderer/FormRenderer` powers both the public `/to/:slug` page and the builder's Preview modal (`mode="preview"` skips the API), so what creators preview is exactly what respondents get.
+- **Branching computed identically on both sides.** lib/logic.ts and services/logic.py compute the respondent's path from their answers (forward-only jumps, so no loops). The renderer keeps a history stack so "previous" retraces the actual path; the server validates and stores only questions on that path.
 - **Validation in two places.** `lib/validation.ts` (instant feedback) mirrors `services/validation.py` (authoritative). The server returns per-question errors (`422 {detail: {errors: {questionId: message}}}`) and the flow jumps back to the first invalid question.
 - **Themes as CSS variables.** A form's theme becomes `--tf-*` custom properties; all respondent styles (`.tf-input`, `.tf-choice`, `.tf-button`…) derive tints with `color-mix()`, so any color combination looks right.
 - **Auth is simplified** to a single default creator (`deps.get_current_user`) — swapping in real auth only touches that dependency.
@@ -189,7 +191,8 @@ Set **Root Directory** to `frontend` and `NEXT_PUBLIC_API_URL` to the Render URL
 - **SQLite on Render's free tier is ephemeral**: the database is re-created and re-seeded whenever the service restarts or redeploys (e.g. after idling). Forms you create in the hosted demo may disappear later; locally, data persists in `backend/typeform.db`. A persistent disk or Postgres (`DATABASE_URL`) would fix this in production.
 - **Views/starts** are lightweight counters (one `view` per page load, one `start` on the first interaction) used for completion rate; they are not de-duplicated per visitor.
 - Deleting a question also deletes its answers (cascade). Renaming/removing a choice keeps old answers readable via the stored label snapshot.
-- Placeholders ("Coming soon"): logic jumps/branching (Workflow tab), integrations (Connect tab), embed/email/QR sharing, team workspaces & sharing, extra question types (file upload, payment, date, phone, etc.), form settings (notifications, scheduling, language), background images, billing.
+- Logic jumps cover single-select choice, dropdown and yes/no questions with forward jumps only; conditions on text/number answers, scoring and variables are placeholders.
+- Placeholders ("Coming soon"): scoring/variables, integrations (Connect tab), embed/email/QR sharing, team workspaces & sharing, extra question types (file upload, payment, date, phone, etc.), form settings (notifications, scheduling, language), background images, billing.
 - The "typeform" wordmark is a plain-text label for this educational clone; no Typeform assets or code are used.
 
 ## Project structure
@@ -203,7 +206,7 @@ backend/
     schemas.py         Pydantic request/response models
     deps.py            default-creator dependency
     routers/           forms.py · responses.py · public.py
-    services/          forms.py · validation.py · responses.py
+    services/          forms.py · validation.py · logic.py · responses.py
     seed.py            demo data
   tests/test_api.py
 frontend/
@@ -212,6 +215,6 @@ frontend/
     builder/           FormEditorProvider (state + autosave), header, sidebar (dnd), canvas, panels, preview
     renderer/          FormRenderer + answer inputs (shared by preview & public flow)
     workspace/ ui/     forms list pieces, modal, menu, toggle
-  src/lib/             api client, types, validation, themes, question type registry
+  src/lib/             api client, types, validation, logic jumps, themes, question type registry
 render.yaml            Render blueprint for the API
 ```

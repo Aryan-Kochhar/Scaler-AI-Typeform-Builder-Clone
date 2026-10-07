@@ -1,7 +1,9 @@
 "use client";
 
 import { Copy, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
+import { supportsJumps } from "@/lib/logic";
 import { ComingSoonBadge } from "@/components/ui/Brand";
 import { Toggle } from "@/components/ui/Toggle";
 import { convertQuestion, QUESTION_TYPES } from "@/lib/questionTypes";
@@ -36,7 +38,7 @@ function NumberField({ value, onChange, placeholder }: { value: number | null | 
 }
 
 function QuestionSettings({ question }: { question: Question }) {
-  const { update, updateQuestion, duplicateQuestion, removeQuestion } = useFormEditor();
+  const { form, update, updateQuestion, duplicateQuestion, removeQuestion } = useFormEditor();
   const props = question.properties;
   const setProps = (patch: Partial<Question["properties"]>) =>
     updateQuestion(question.id, { properties: { ...props, ...patch } });
@@ -123,7 +125,13 @@ function QuestionSettings({ question }: { question: Question }) {
       )}
 
       <Row label="Logic jumps">
-        <ComingSoonBadge />
+        {supportsJumps(question) ? (
+          <Link href={`/form/${form.id}/workflow`} className="text-sm font-medium text-accent hover:underline">
+            {Object.keys(question.properties.jumps ?? {}).length ? "Edit logic" : "Add logic"}
+          </Link>
+        ) : (
+          <span className="text-xs text-ink-faint">Single-select only</span>
+        )}
       </Row>
       <Row label="Image or video">
         <ComingSoonBadge />

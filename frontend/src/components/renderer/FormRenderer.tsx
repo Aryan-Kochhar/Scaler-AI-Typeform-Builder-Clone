@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api";
 import { themeStyle } from "@/lib/themes";
 import type { Answers, AnswerValue, PublicForm, Question } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { nextIndex, visitedPath } from "@/lib/logic";
 import { isEmpty, validateAnswer } from "@/lib/validation";
 import { AnswerInput } from "./inputs";
 
@@ -55,6 +56,8 @@ export function FormRenderer({ form, mode, onSubmit, onStart, embedded }: FormRe
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  /** Indices of the questions shown before the current one (supports back-navigation through logic jumps). */
+  const [history, setHistory] = useState<number[]>([]);
 
   const answersRef = useRef<Answers>({});
   const startedAt = useRef<string | null>(null);
@@ -66,37 +69,40 @@ export function FormRenderer({ form, mode, onSubmit, onStart, embedded }: FormRe
     onStart?.();
   }, [onStart]);
 
-  const goTo = (target: number) => {
+  const goTo = (target: number, trail: number[]) => {
     window.clearTimeout(advanceTimer.current);
     setDirection(target >= step ? 1 : -1);
+    setHistory(trail);
     setStep(target);
   };
 
   const submit = async (all: Answers) => {
+    // Only the questions on the respondent's path (after logic jumps) count.
+    const path = visitedPath(questions, all);
     const clientErrors: Record<string, string> = {};
-    questions.forEach((q) => {
-      const err = validateAnswer(q, all[q.id]);
-      if (err) clientErrors[q.id] = err;
+    path.forEach((i) => {
+      const err = validateAnswer(questions[i], all[questions[i].id]);
+      if (err) clientErrors[questions[i].id] = err;
     });
-    const firstInvalid = questions.findIndex((q) => clientErrors[q.id]);
+    const firstInvalid = path.findIndex((i) => clientErrors[questions[i].id]);
     if (firstInvalid >= 0) {
       setErrors(clientErrors);
-      goTo(firstInvalid);
+      goTo(path[firstInvalid], path.slice(0, firstInvalid));
       return;
     }
 
     setSubmitting(true);
     setSubmitError(null);
     try {
-      if (mode === "live" && onSubmit) await onSubmit(serialize(questions, all), startedAt.current);
+      if (mode === "live" && onSubmit) await onSubmit(serialize(path.map((i) => questions[i]), all), startedAt.current);
       setDirection(1);
       setDone(true);
     } catch (e) {
       const serverErrors = (e instanceof ApiError && (e.detail as { errors?: Record<string, string> })?.errors) || null;
       if (serverErrors) {
         setErrors(serverErrors);
-        const idx = questions.findIndex((q) => serverErrors[q.id]);
-        if (idx >= 0) goTo(idx);
+        const pos = path.findIndex((i) => serverErrors[questions[i].id]);
+        if (pos >= 0) goTo(path[pos], path.slice(0, pos));
       } else {
         setSubmitError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
       }
@@ -109,7 +115,7 @@ export function FormRenderer({ form, mode, onSubmit, onStart, embedded }: FormRe
     if (done || submitting) return;
     if (step === WELCOME) {
       markStarted();
-      goTo(0);
+      goTo(0, []);
       return;
     }
     const question = questions[step];
@@ -121,13 +127,14 @@ export function FormRenderer({ form, mode, onSubmit, onStart, embedded }: FormRe
       return;
     }
     markStarted();
-    if (step < questions.length - 1) goTo(step + 1);
+    const target = nextIndex(questions, step, all);
+    if (target < questions.length) goTo(target, [...history, step]);
     else void submit(all);
   };
 
   const prev = () => {
-    if (step > 0) goTo(step - 1);
-    else if (step === 0 && firstStep === WELCOME) goTo(WELCOME);
+    if (history.length) goTo(history[history.length - 1], history.slice(0, -1));
+    else if (step === 0 && firstStep === WELCOME) goTo(WELCOME, []);
   };
 
   const setAnswer = (question: Question, value: AnswerValue, advance?: boolean) => {
@@ -176,12 +183,15 @@ export function FormRenderer({ form, mode, onSubmit, onStart, embedded }: FormRe
     setAnswers({});
     setErrors({});
     setDone(false);
+    setHistory([]);
     setDirection(-1);
     setStep(firstStep);
   };
 
-  const answeredCount = questions.filter((q) => !isEmpty(answers[q.id])).length;
-  const progress = done ? 100 : questions.length ? (answeredCount / questions.length) * 100 : 0;
+  const path = visitedPath(questions, answers);
+  const answeredCount = path.filter((i) => !isEmpty(answers[questions[i].id])).length;
+  const progress = done ? 100 : path.length ? (answeredCount / path.length) * 100 : 0;
+  const onLastQuestion = step >= 0 && step < questions.length && nextIndex(questions, step, answers) >= questions.length;
   const stepKey = done ? "done" : step === WELCOME ? "welcome" : questions[step]?.id ?? "empty";
 
   let content: React.ReactNode;
@@ -231,7 +241,7 @@ export function FormRenderer({ form, mode, onSubmit, onStart, embedded }: FormRe
     const question = questions[step];
     const value = answers[question.id];
     const error = errors[question.id];
-    const isLast = step === questions.length - 1;
+    const isLast = onLastQuestion;
     const hideOk = AUTO_ADVANCE_TYPES.has(question.type) || (question.type === "multiple_choice" && !question.properties.allow_multiple);
     content = (
       <div className="w-full max-w-[720px]">
@@ -315,12 +325,12 @@ export function FormRenderer({ form, mode, onSubmit, onStart, embedded }: FormRe
       {!done && step !== WELCOME && questions.length > 0 && (
         <div className="absolute bottom-4 right-4 z-10 flex items-center gap-3">
           <span className="hidden text-xs tf-subtle sm:inline">
-            {answeredCount} of {questions.length} answered
+            {answeredCount} of {path.length} answered
           </span>
           <div className="flex overflow-hidden rounded" style={{ boxShadow: "0 3px 12px rgba(0,0,0,.1)" }}>
             {[
               { label: "Previous question", icon: ChevronUp, onClick: prev, disabled: step === 0 && firstStep !== WELCOME },
-              { label: "Next question", icon: ChevronDown, onClick: () => next(), disabled: step >= questions.length - 1 },
+              { label: "Next question", icon: ChevronDown, onClick: () => next(), disabled: onLastQuestion },
             ].map(({ label, icon: Icon, onClick, disabled }, i) => (
               <button
                 key={label}
