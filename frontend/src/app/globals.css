@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-ink: #262627;
+  --color-ink-soft: #5e5e5e;
+  --color-ink-faint: #8c8c8c;
+  --color-line: #e3e3e3;
+  --color-canvas: #f4f4f3;
+  --color-surface: #ffffff;
+  --color-brand: #191919;
+  --color-accent: #7444f2;
+  --color-success: #0a7c48;
+  --color-danger: #c42a2a;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: #fafaf9;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white transition hover:bg-black/80 disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-medium text-ink transition hover:bg-black/[0.04] disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-danger px-4 text-sm font-medium text-white transition hover:opacity-90;
+  }
+  .btn-ghost {
+    @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-sm text-ink-soft transition hover:bg-black/[0.05] hover:text-ink;
+  }
+  .field {
+    @apply h-9 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none transition focus:border-ink;
+  }
+  .label {
+    @apply text-[13px] font-medium text-ink;
+  }
+}
+
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* ---------- Respondent (form) theme ---------- */
+
+.tf-theme {
+  background: var(--tf-bg);
+  color: var(--tf-question);
+  font-family: var(--tf-font);
+}
+
+.tf-question-text {
+  color: var(--tf-question);
+}
+
+.tf-answer-text {
+  color: var(--tf-answer);
+}
+
+.tf-input {
+  width: 100%;
+  background: transparent;
+  color: var(--tf-answer);
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--tf-answer) 30%, transparent);
+  padding: 0 0 8px;
+  font-size: 30px;
+  line-height: 38px;
+  outline: none;
+  transition: box-shadow 0.1s ease-out;
+  resize: none;
+}
+.tf-input::placeholder {
+  color: color-mix(in srgb, var(--tf-answer) 30%, transparent);
+}
+.tf-input:focus {
+  box-shadow: 0 1px 0 0 var(--tf-answer);
+}
+@media (max-width: 640px) {
+  .tf-input {
+    font-size: 22px;
+    line-height: 30px;
+  }
+}
+
+.tf-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--tf-answer) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tf-answer) 60%, transparent);
+  color: var(--tf-answer);
+  font-size: 20px;
+  line-height: 28px;
+  text-align: left;
+  transition: background 0.1s ease-out;
+}
+.tf-choice:hover {
+  background: color-mix(in srgb, var(--tf-answer) 30%, transparent);
+}
+.tf-choice[data-selected="true"] {
+  background: color-mix(in srgb, var(--tf-answer) 30%, transparent);
+  box-shadow: inset 0 0 0 2px var(--tf-answer);
+}
+.tf-choice[data-blink="true"] {
+  animation: tf-blink 0.25s steps(1) 2;
+}
+@keyframes tf-blink {
+  50% {
+    background: color-mix(in srgb, var(--tf-answer) 10%, transparent);
+  }
+}
+
+.tf-key {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--tf-bg);
+  color: var(--tf-answer);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tf-answer) 60%, transparent);
+}
+.tf-choice[data-selected="true"] .tf-key {
+  background: var(--tf-answer);
+  color: var(--tf-bg);
+}
+
+.tf-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  min-height: 40px;
+  border-radius: 4px;
+  background: var(--tf-button);
+  color: var(--tf-button-text);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  box-shadow: 0 3px 12px 0 rgba(0, 0, 0, 0.1);
+  transition: filter 0.1s ease-out;
+}
+.tf-button:hover {
+  filter: brightness(1.12);
+}
+
+.tf-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  background: #f7e6e6;
+  color: #af0404;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.tf-subtle {
+  color: color-mix(in srgb, var(--tf-question) 70%, transparent);
+}
+
+/* Builder inline editors look exactly like the rendered text */
+.tf-inline-edit {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  padding: 0;
+}
+.tf-inline-edit::placeholder {
+  color: color-mix(in srgb, currentColor 40%, transparent);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
