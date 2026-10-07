@@ -149,16 +149,25 @@ def duplicate_form(db: Session, source: Form) -> Form:
         theme=dict(source.theme or {}),
         settings=dict(source.settings or {}),
     )
+    # New ids up front so logic jumps (keyed by choice id, targeting question ids) can be remapped.
+    id_map = {q.id: new_id() for q in source.questions}
+    id_map.update({c.id: new_id() for q in source.questions for c in q.choices})
     for q in source.questions:
+        properties = dict(q.properties or {})
+        if properties.get("jumps"):
+            properties["jumps"] = {
+                id_map.get(key, key): id_map.get(target, target) for key, target in properties["jumps"].items()
+            }
         copy.questions.append(
             Question(
+                id=id_map[q.id],
                 position=q.position,
                 type=q.type,
                 title=q.title,
                 description=q.description,
                 required=q.required,
-                properties=dict(q.properties or {}),
-                choices=[Choice(position=c.position, label=c.label) for c in q.choices],
+                properties=properties,
+                choices=[Choice(id=id_map[c.id], position=c.position, label=c.label) for c in q.choices],
             )
         )
     db.add(copy)

@@ -29,7 +29,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(`${API_URL}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      // Only send Content-Type with a body: a bare GET then needs no CORS preflight round-trip.
+      headers: init?.body ? { "Content-Type": "application/json", ...init.headers } : init?.headers,
     });
   } catch {
     throw new ApiError("Can't reach the server. Please try again.", 0);

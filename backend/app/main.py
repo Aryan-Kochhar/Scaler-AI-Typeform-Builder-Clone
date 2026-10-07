@@ -22,6 +22,7 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=86400,  # let browsers cache preflights; the API is cross-origin from the frontend
 )
 
 app.include_router(forms.router)

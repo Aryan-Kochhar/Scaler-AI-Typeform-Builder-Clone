@@ -96,6 +96,11 @@ def test_logic_jump_skips_required_questions(client):
     res = client.post(url, json={"answers": {q1: False, q3: "done"}})
     assert res.status_code == 422 and q2 in res.json()["detail"]["errors"]
 
+    # Duplicating keeps the logic, pointing at the copy's own questions
+    dup = client.post(f"/api/forms/{form['id']}/duplicate").json()
+    dup_ids = [q["id"] for q in dup["questions"]]
+    assert dup["questions"][0]["properties"]["jumps"] == {"yes": dup_ids[2]}
+
 
 def test_single_choice_rejects_multiple(client):
     form = next(f for f in client.get("/api/forms").json() if f["title"] == "Customer Feedback Survey")

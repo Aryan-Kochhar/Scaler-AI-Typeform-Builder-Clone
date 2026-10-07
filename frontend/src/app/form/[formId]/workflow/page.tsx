@@ -22,6 +22,8 @@ function JumpRules({ question, index }: { question: Question; index: number }) {
   const { form, updateQuestion } = useFormEditor();
   const jumps = question.properties.jumps ?? {};
   const later = form.questions.slice(index + 1);
+  // A jump whose target was deleted or moved above this question is ignored at runtime ("next question").
+  const validTargets = new Set([END, ...later.map((q) => q.id)]);
 
   const setJump = (key: string, target: string) => {
     const next = { ...jumps };
@@ -48,7 +50,7 @@ function JumpRules({ question, index }: { question: Question; index: number }) {
             <span className="text-ink-soft">go to</span>
             <select
               className="field !h-8 !w-auto max-w-[260px] flex-1"
-              value={jumps[option.key] ?? ""}
+              value={validTargets.has(jumps[option.key]) ? jumps[option.key] : ""}
               onChange={(e) => setJump(option.key, e.target.value)}
             >
               <option value="">Next question</option>

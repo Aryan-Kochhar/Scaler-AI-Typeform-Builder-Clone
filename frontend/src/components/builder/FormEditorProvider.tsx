@@ -156,10 +156,15 @@ export function FormEditorProvider({ formId, children }: { formId: string; child
     (id: string) => {
       const source = formRef.current?.questions.find((q) => q.id === id);
       if (!source) return;
+      const choiceIds = new Map(source.choices.map((c) => [c.id, uid()]));
+      const jumps = source.properties.jumps
+        ? Object.fromEntries(Object.entries(source.properties.jumps).map(([key, to]) => [choiceIds.get(key) ?? key, to]))
+        : undefined;
       const copy: Question = {
         ...structuredClone(source),
         id: uid(),
-        choices: source.choices.map((c) => ({ ...c, id: uid() })),
+        properties: { ...structuredClone(source.properties), ...(jumps && { jumps }) },
+        choices: source.choices.map((c) => ({ ...c, id: choiceIds.get(c.id)! })),
       };
       update((f) => {
         const questions = [...f.questions];
