@@ -99,7 +99,7 @@ export function QuestionSidebar() {
   };
 
   return (
-    <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-white">
+    <aside className="flex w-[220px] shrink-0 flex-col border-r border-line bg-white xl:w-[264px]">
       <div className="p-3">
         <button className="btn-primary w-full" onClick={() => setAddOpen(true)}>
           <Plus size={16} /> Add content

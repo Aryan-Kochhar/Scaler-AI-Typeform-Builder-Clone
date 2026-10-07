@@ -14,6 +14,8 @@ export function PreviewModal({ open, onClose, form }: { open: boolean; onClose: 
 
   useEffect(() => {
     if (!open) return;
+    // Keystrokes belong to the preview, not to whichever builder field had focus.
+    (document.activeElement as HTMLElement | null)?.blur();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

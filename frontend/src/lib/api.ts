@@ -8,7 +8,11 @@ import type {
   User,
 } from "./types";
 
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+// The Render service name in render.yaml determines this default; override with NEXT_PUBLIC_API_URL.
+const DEFAULT_API_URL =
+  process.env.NODE_ENV === "production" ? "https://aryan-typeform-clone-api.onrender.com" : "http://localhost:8000";
+
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/$/, "");
 
 export class ApiError extends Error {
   constructor(

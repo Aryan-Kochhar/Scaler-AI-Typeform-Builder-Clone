@@ -2,7 +2,7 @@
 # Frontend is deployed separately on Vercel (root directory: frontend/).
 services:
   - type: web
-    name: scaler-typeform-api
+    name: aryan-typeform-clone-api
     runtime: python
     plan: free
     rootDir: backend

@@ -169,8 +169,17 @@ cd backend && pytest
 
 ## Deployment
 
-- **Backend → Render** (`render.yaml` blueprint): New → Blueprint → pick this repo. Free web service, root `backend/`, start command `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
-- **Frontend → Vercel**: import the repo, set **Root Directory** to `frontend`, add env var `NEXT_PUBLIC_API_URL=https://<your-render-service>.onrender.com`, deploy.
+**1. Backend → Render** (uses `render.yaml`)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Aryan-Kochhar/Scaler-AI-Typeform-Builder-Clone)
+
+Creates a free web service `aryan-typeform-clone-api` (root `backend/`, start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, health check `/api/health`). Note the service URL, e.g. `https://aryan-typeform-clone-api.onrender.com`.
+
+**2. Frontend → Vercel**
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/import?s=https%3A%2F%2Fgithub.com%2FAryan-Kochhar%2FScaler-AI-Typeform-Builder-Clone&root-directory=frontend&env=NEXT_PUBLIC_API_URL)
+
+Set **Root Directory** to `frontend` and `NEXT_PUBLIC_API_URL` to the Render URL from step 1. (If unset, production builds default to `https://aryan-typeform-clone-api.onrender.com`.)
 
 ---
 

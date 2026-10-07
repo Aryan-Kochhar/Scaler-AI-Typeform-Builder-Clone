@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import Form, Question, Response as FormResponse, User, utcnow
+from ..models import CHOICE_TYPES, Form, Question, Response as FormResponse, User, utcnow
 from ..schemas import FormCreate, FormDefinition, FormListItem, FormOut, FormPatch, UserOut
 from ..services import forms as form_service
 
@@ -98,9 +98,11 @@ def publish_form(form_id: str, db: Session = Depends(get_db), user: User = Depen
     form = form_service.get_owned_form(db, form_id, user)
     if not form.questions:
         raise HTTPException(status_code=400, detail="Add at least one question before publishing")
-    untitled = [q.position + 1 for q in form.questions if not q.title.strip()]
-    if untitled:
-        raise HTTPException(status_code=400, detail=f"Question {untitled[0]} needs a title before publishing")
+    for q in form.questions:
+        if not q.title.strip():
+            raise HTTPException(status_code=400, detail=f"Question {q.position + 1} needs a title before publishing")
+        if q.type in CHOICE_TYPES and (not q.choices or any(not c.label.strip() for c in q.choices)):
+            raise HTTPException(status_code=400, detail=f"Question {q.position + 1} has an empty choice")
     form.status = "published"
     form.published_at = form.updated_at = utcnow()
     db.commit()

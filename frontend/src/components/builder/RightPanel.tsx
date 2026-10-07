@@ -254,7 +254,7 @@ export function RightPanel() {
   const question = form.questions.find((q) => q.id === selected);
 
   return (
-    <aside className="scrollbar-thin hidden w-[300px] shrink-0 overflow-y-auto border-l border-line bg-white lg:block">
+    <aside className="scrollbar-thin hidden w-[260px] shrink-0 overflow-y-auto border-l border-line bg-white md:block xl:w-[300px]">
       <div className="sticky top-0 z-10 flex border-b border-line bg-white px-2">
         {(["content", "design"] as const).map((t) => (
           <button
