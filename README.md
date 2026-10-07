@@ -2,7 +2,8 @@
 
 A full-stack clone of [Typeform](https://www.typeform.com): build forms in a three-pane builder with drag-and-drop and a live WYSIWYG preview, publish them to a public link, collect answers through the one-question-at-a-time animated flow, and review results with per-question summaries.
 
-- **Live demo:** _see the submission form / repo description_ (frontend on Vercel, API on Render)
+- **Live demo:** https://scaler-ai-typeform-builder-clone.vercel.app (frontend on Vercel)
+- **API:** https://aryan-typeform-clone-api.onrender.com/docs (FastAPI on Render)
 - **Stack:** Next.js 16 (TypeScript, App Router, Tailwind CSS 4) · FastAPI · SQLAlchemy 2 · SQLite
 
 > The API runs on Render's free tier, which sleeps when idle. The first request can take up to ~50 s while it wakes up (the UI shows a "waking up the server" hint).
